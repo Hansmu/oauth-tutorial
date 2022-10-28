@@ -123,3 +123,61 @@ code will be sent there. It might be a URL or a custom URL scheme. The HTTPS URL
 as you own that URL. Custom URL schemes aren't usable as application identity, as there is no guarantee of uniqueness
 and ownership. So an application's HTTPS URL is part of an application's identity. With SPAs and mobile apps we can 
 use this for their identity. You have to consider security policies based on the context.
+
+**Application flow**
+
+For public apps like Facebook, registering your app is pretty straightforward. Otherwise, it's not quite as self-serve.
+When you register an app, you get a client_id (public information), and you may or may not also get a client_secret
+(secret). You'll also have to enter a bunch of different information, but at a minimum you'll be able to enter a 
+name and a redirect URI or two. A wildcard URI should not be allowed, as that's a potential attack vector.
+
+1. The user turns to the app
+2. The app generates a random secret. This is unique for each flow execution. This is called the PKCE code verifier.
+It holds the random secret in memory. Also, a hash is generated from it called a PKCE code challenge.
+   ![Code verifier secret](./images/code_verifier_secret.png)
+   ![Code challenge](./images/code_challenge.png)
+3. The app redirects the user to the authorization server and adds the hash to the call. So this is happening in the
+front channel because it's through the browser. A call to the auth endpoint follows, to which you add a bunch of query
+string parameters: 
+   * response_type=code, this tells the server that you're doing the authorization code flow.
+   * client_id=CLIENT_ID, this tells the server which app is making the call.
+   * redirect_uri=REDIRECT_URI, this has to match one of the URIs that you have registered for your app.
+   * scope=SCOPE_VALUE, this is for the scopes that you are trying to access.
+   * state=XXXX, this was originally used for CSRF protection, but PKCE fixes the same issue. So this could be 
+   used to save application specific data. Although, this is only safe to be used this way if you are sure that
+   the OAuth server supports PKCE. If not, then this has to be a random value.
+   * code_challenge=XXXXXXXXXXXXXX, this is the hash that was generated initially.
+   * code_challenge_method=S256, this is the hash method that was used to produce the hash.
+     ![Redirect URL](./images/auth_redirect_url.png)
+
+   The user does all the auth that is necessary on the authorization server.
+
+4. The authentication server returns a temporary code for the app to use. The browser receives the code and the code
+is forwarded to the backend. There is also the possibility that some error will have occurred.
+   ![Auth server redirect back](./images/auth_server_redirect_back_to_app.png)
+   ![Error redirect](./images/error_redirect.png)
+5. The server should validate that the state value matched, if no PKCE is available. The server forwards the code,
+the plaintext PKCE code secret that was initially created, and asks for a token.
+   * grant_type=authorization_code, tells the server that you're doing an authorization code grant.
+   * code=AUTH_CODE_HERE, the authorization code that was provided by the authorization server back to the app.
+   * redirect_uri=REDIRECT_URI, the URI that was used in the request.
+   * code_verifier=VERIFIER_STRING, the plaintext code that was generated at the start.
+   * client_id=CLIENT_ID, the app identifier for the authorization server.
+   * client_secret=CLIENT_SECRET, the secret of the app.
+     ![Token post](./images/token_post.png)
+6. The server verifies the secret and then returns an access token. Possibly with a refresh token.
+   ![Token response](./images/token_response.png)
+   If the current access token expires, then a refresh token could be used to get a new access token without doing 
+the entire flow again. This then returns a new access token, and possibly a new refresh token. There are a whole bunch
+of reasons why a refresh token might fail, though, so it's entirely possible for this call to fail. So when it fails, 
+then a full new authorization flow should be attempted.
+   ![Refresh token call](./images/refresh_token_call.png)
+
+PKCE was initially developed for mobile apps. The guidance is now recommended for all kinds of applications. With
+server side apps there is still a subtle attack you can pull off called an authorization code injection attack, where 
+you can swap authorization codes and end up logged into as someone else. So PKCE helps against this. You may find 
+servers that do not support PKCE for confidential clients. In that case you should recommend that they add PKCE support.
+You can still add PKCE parameters, even if they aren't support today, as the server simply ignores parameters it doesn't
+care about, but when PKCE support becomes available, then it'll become so automatically in the future.
+
+![Auth code flow](./images/auth_code_flow.png)
