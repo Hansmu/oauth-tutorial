@@ -181,3 +181,61 @@ You can still add PKCE parameters, even if they aren't support today, as the ser
 care about, but when PKCE support becomes available, then it'll become so automatically in the future.
 
 ![Auth code flow](./images/auth_code_flow.png)
+
+**Native apps flow**
+
+Native apps lose a lot of the built-in security that exist in browsers. For example, it checks the DNS, validates HTTPS.
+The redirect URL is where the differences come in. The native app opens up an in-app browser to the auth server, and then
+it returns a redirect URL. 
+
+There are two ways how a redirect URL can happen within a mobile app. 
+
+It used to be common
+that applications would be able to just define a custom URL scheme and any time anything in the phone launched a URL 
+matching that scheme, that app would launch instead. The issue is that there's no registry of these, so any app can
+claim any URL scheme. If someone figures out your app scheme, then they can just create their own app with the same
+scheme, and they'd race for the launch. Opens up a chance to steal auth codes in the redirect.
+
+The more modern way for redirects to be claimed is by claiming URL patterns. Also known as deep linking. This is where
+your mobile app can claim a URL pattern, including a full domain name or even path. And then again, once that's 
+registered, any app that launches your URL will launch your app instead. This is how you get things like when you
+click on a link to Amazon, you get taken to the Amazon app with that product loaded or linking to an Instagram photo
+where you get dropped right into the Instagram app instead of the website. What makes this more secure is that the
+app developer has to actually prove that they control that domain name. There are, however, still ways it can fail
+so we can't trust it as much as the browser. And that's really why PKCE is so important.
+
+One of the most important parts about the OAuth flow in a mobile environment is how the mobile app launches 
+the browser to the OAuth server to start the flow. 
+
+It used to be that the most secure way to do it was to
+launch the native app (Safari, Chrome). You launch the browser, your app goes into the background, they'd log in,
+switch back. It's more fragile since the user leaves the context of the app. Another thing that was previously used
+was embedding a webview into the app. A couple of issues with that is that the user could not see the address bar,
+can't verify where they are, might be on an attacker site. Also, cookies aren't shared with the system. So if you're
+logged in the browser, then you wouldn't be in the webview. Additionally, the app has full control over the webview,
+so they could read the password if they wanted to.
+
+Things have got a lot better now. We now have APIs which are able to launch a browser in a secure way within the 
+application, which means the user never actually leaves the app. The user is inside the app, they click a button, 
+the web view pops up in front of the application, they can log in there, and then it goes away, and they're still
+within the application. The nice thing about this is that the user never leaves the app. Also, the app doesn't
+have access to the browser. Also, it shares cookies with the system, thus saving the user from having to log in 
+again.
+
+**Authorization code flow for native apps**
+
+The flow is pretty much the same as for the regular flow, but you don't move around a client secret key.
+
+![Auth code flow for native apps](./images/native_apps_code_flow.png)
+
+Depending on the server configuration, the server might return a refresh token or the app might need to
+explicitly ask for it. Since there is no client secret, then anyone that possesses the refresh token would 
+be able to get a new token. So you need to take proper care to protect the refresh token. Luckily enough, most
+of this is already taken care of by the native app platforms, isolating apps from each other and things like that.
+There's also a particularly useful API on mobile to better keep your refresh token safe. The secure storage API
+is one which the app's code can't access anymore with biometric validation after storing into it. 
+When trying to log in again with the  refresh token, the app prompts the user for biometrics to be able to 
+access it, making the refresh token available to the app. It then makes that request using the refresh token, and it
+gets a new access token back, and the user is logged in. The user didn't have to see a web browser, just looks like
+a seamless  FaceID or thumbprint authentication. Your app wouldn't even be able to accidentally extract the refresh
+token.
