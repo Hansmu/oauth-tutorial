@@ -239,3 +239,40 @@ access it, making the refresh token available to the app. It then makes that req
 gets a new access token back, and the user is logged in. The user didn't have to see a web browser, just looks like
 a seamless  FaceID or thumbprint authentication. Your app wouldn't even be able to accidentally extract the refresh
 token.
+
+**OAuth for SPAs**
+
+SPAs have several limitations. 
+* There is no way of shipping credentials in the app, so they are considered public clients in OAuth terms. This can be
+mitigated with PKCE, though.
+* Browsers are vulnerable to a whole bunch of attacks. Ex. XSS. XSS can come from your app or from third party scripts that
+you have included in your app. Users might also have custom plugins that can cause
+security issues. Browsers also have no secure storage. If your code can read the storage, then there's a chance an
+attacker's JS can as well.
+
+OAuth servers can have significantly different policies for single-page apps compared to other kinds of apps. 
+For example, refresh tokens might be disabled completely or they might be single use only. Token lifetimes might be
+shorter to reduce the risk from leaking.
+
+Similar to a native app, you won't have a client secret. The generated secret is usually stored in LocalStorage or
+SessionStorage.
+
+![SPA auth flow](./images/spa_auth_flow.png)
+
+There are a couple of ways to secure a token in a browser
+* Keeping it in memory will make it a lot harder for an attack to get to it. This means that it won't persist through
+refreshes and tabs, though.
+* Storing it in a Service Worker. Service Workers are completely isolated from the main browser window, so XSS
+attackers won't actually have access to it. The downside is that it's more complicated and doesn't work in IE11.
+You'd have to use a service worker as a little isolated OAUth client, meaning that your JS can't make API calls itself
+anymore and needs to instead tell the service worker to make the API call, and then it'll just handle the response.
+An XSS attacker could still tell your service worker to go make those requests.
+* A WebCrypto API could also be used, which isn't supported in IE11. It generates a private key, while preventing that
+private key from being extracted. You can use the key to encrypt things that you might want to store. Better than
+storing in plaintext into LocalStorage, but an attacker could still use that key to decrypt the storage. But it
+would be a more targeted attack than a LocalStorage look around.
+
+So the only way to keep tokens safe from JS based attacks is to not give JS access to tokens at all. This can be 
+achieved by using a HTTPOnly session cookie to the browser. Although, this only works if you have a backend.
+
+![HTTP Session Cookie Flow](./images/http_session_cookie_flow.png)
