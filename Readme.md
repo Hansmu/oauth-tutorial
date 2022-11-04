@@ -311,3 +311,31 @@ useful in this flow as the entire flow is kind of long and bothersome.
    ![IoT success polling](./images/iot_polling_successful.png)
 
 ![IoT Auth Flow](./images/iot_oauth_flow.png)
+
+
+**Client credentials flow**
+
+One of the simplest flows, as there is no user involved. No user, no redirects. The application takes its own
+credentials and exchanges them for an access token. The intent of the client credentials grant is to give the
+application a way to get an access token without the user's interaction. It's just trying to access its own 
+resources. Ex. making backend requests to microservices, getting statistics about how many users are using
+an app.
+
+There might be a couple of reasons why you'd want to do this.
+* Your backend probably already has a way to validate tokens, so you can re-use token validation logic.
+* The API doesn't need to have knowledge of client credentials at all. Don't need access to the DB where the client
+credentials live. Sometimes it's also possible to validate access tokens without any network traffic, making this much
+more scalable for large scale deployments.
+
+In order to use it, first you'll have to register an application at the OAuth server in order to get credentials.
+The exact process depends on the server, but usually there's a machine-to-machine or service account option. If none
+of those exist, just choose an option that gets you a client secret, like choosing a web app or a server side app.
+Once you register, you should get a client ID and a client secret and that's all that is needed. You'll then be making
+a POST request for the access token. If you want a down-scoped token, then you also include the scope. The client
+credentials providing depends on the server. You'll either provide it in the body or in an HTTP header as Basic Auth.
+![Machine to machine token request](./images/machine_to_machine_token_request.png)
+The response looks the same as every other access token response. You probably won't get a refresh token as there's
+no real benefit to it. The access token might have an expiration date. Up to the server to decide how long
+these access tokens last. If it expires, you don't have a refresh token, but that's fine because you just make the
+same request again and get back a new access token.
+![Machine to machine token response](./images/machine_to_machine_token_response.png)
