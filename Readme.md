@@ -276,3 +276,38 @@ So the only way to keep tokens safe from JS based attacks is to not give JS acce
 achieved by using a HTTPOnly session cookie to the browser. Although, this only works if you have a backend.
 
 ![HTTP Session Cookie Flow](./images/http_session_cookie_flow.png)
+
+
+**IoT flow**
+
+There's no real comfortable way to provide input. That is, there is no way to write in your password easily.
+The logic that is used for IoT devices is showing a screen to which you should go to log in on another device.
+It consists of two pieces - a URL and a code to enter at that URL. It all happens with the device talking to
+the OAuth server first. Gets a set of instructions, shows the code to the user. Take your phone, go to the URL,
+enter the code, log in how you would normally, and then put your phone away. Meanwhile, the device is polling
+every couple of seconds waiting for you to be done logging in. Eventually gets its token. Every OAuth server
+does not support this flow, so need to double-check it's supported. Could also set up a proxy server in the
+middle to coordinate the device flow where it delegates out to the real OAuth server.
+
+So the flow goes like this:
+1. The user wants to log in
+2. The device tells the OAuth server that someone's trying to log in. I don't know who they are, but here's
+my identifier (clientId).
+   ![Device code request](./images/device_code_request.png)
+3. The server provides the device with some instructions. A temporary code to show to the user, and a longer
+temporary code that the device has to hold onto. Also, a URL that tells the user to go log in at, and some
+instructions to the device about how long to poll and how long this request is valid. The `device_code` is what
+the device will use for polling. The `user_code` will be shown to the user. `verification_uri` is the URL to
+tell the user to go to. `expires_in` is how long it's valid. `interval` is how long it should wait when polling.
+   ![Device code response](./images/device_code_response.png)
+4. The device shows this information to the user - the URL and the short code.
+5. The user gets redirected to the OAuth server. User enters the short code and then proceeds the same way
+they always would.
+6. OAuth server says that it's done. Can put their phone away.
+7. During this time the device has been polling with its long code. 
+   ![IoT pending polling](./images/iot_pending_polling.png)
+8. Eventually it gets an access token for it after the user has finished logging in. The refresh token is pretty
+useful in this flow as the entire flow is kind of long and bothersome.
+   ![IoT success polling](./images/iot_polling_successful.png)
+
+![IoT Auth Flow](./images/iot_oauth_flow.png)
