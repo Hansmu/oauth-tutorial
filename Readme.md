@@ -29,7 +29,7 @@ OAuth is an open-standard authorization protocol or framework that describes how
 safely allow authenticated access to their assets without actually sharing the initial, related, single logon credential. 
 In authentication parlance, this is known as secure, third-party, user-agent, delegated authorization.
 
-**Roles**
+<h2>Roles</h2>
 * **The user (Resource Owner)** - the person with the account. _For example, I’m the Resource Owner of my Facebook profile._
 * **The device (User Agent)** - the device being used by the user
 * **The application (The OAuth Client)** - the device is running an application or accessing the 
@@ -41,7 +41,7 @@ will see the user's password. Exchanges a cookie/token for the password. In smal
 the authorization server could be combined with the resource server. The authorization server verifies the identity of 
 the user then issues access tokens to the application.
 
-**Application types**
+<h2>Application types</h2>
 * Confidential - has the ability to be deployed with a client secret, the secret won't be visible
 to anyone using the app. So things that end up on a device that is not touchable by the client.
 Identity has been confirmed.
@@ -78,7 +78,7 @@ thus verifying that the user is at the computer. If everything is happening thro
 pretty easy to add MFA as well. First party apps might want to skip the consent form, as there isn't a trust issue. Still
 has to do the redirects, though.
 
-**How data moves around**
+<h2>How data moves around</h2>
 
 Back channel - a direct communication between the client and the token endpoint over HTTPS. We know who we're talking
 to because of the certificates. Data is encrypted in transit. Can trust the response because we know where it came from.
@@ -108,7 +108,7 @@ of the lack of security. This is called the implicit flow, and it uses the front
 included in the spec, because it used to be that browsers had no other option, as CORS requests used to be not possible. 
 The solution is to deliver the access token in the back channel instead. 
 
-**Application identity**
+<h2>Application identity</h2>
 
 Each application has its own identifier called a client ID, which it uses to identify itself throughout the OAuth flow.
 The redirect link to the authorization server is sent with a ClientID in it, among all the other important parameters.
@@ -124,7 +124,7 @@ as you own that URL. Custom URL schemes aren't usable as application identity, a
 and ownership. So an application's HTTPS URL is part of an application's identity. With SPAs and mobile apps we can 
 use this for their identity. You have to consider security policies based on the context.
 
-**Application flow**
+<h2>Application flow</h2>
 
 For public apps like Facebook, registering your app is pretty straightforward. Otherwise, it's not quite as self-serve.
 When you register an app, you get a client_id (public information), and you may or may not also get a client_secret
@@ -182,7 +182,7 @@ care about, but when PKCE support becomes available, then it'll become so automa
 
 ![Auth code flow](./images/auth_code_flow.png)
 
-**Native apps flow**
+<h2>Native apps flow</h2>
 
 Native apps lose a lot of the built-in security that exist in browsers. For example, it checks the DNS, validates HTTPS.
 The redirect URL is where the differences come in. The native app opens up an in-app browser to the auth server, and then
@@ -222,7 +222,7 @@ within the application. The nice thing about this is that the user never leaves 
 have access to the browser. Also, it shares cookies with the system, thus saving the user from having to log in 
 again.
 
-**Authorization code flow for native apps**
+<h2>Authorization code flow for native apps</h2>
 
 The flow is pretty much the same as for the regular flow, but you don't move around a client secret key.
 
@@ -240,7 +240,7 @@ gets a new access token back, and the user is logged in. The user didn't have to
 a seamless  FaceID or thumbprint authentication. Your app wouldn't even be able to accidentally extract the refresh
 token.
 
-**OAuth for SPAs**
+<h2>OAuth for SPAs</h2>
 
 SPAs have several limitations. 
 * There is no way of shipping credentials in the app, so they are considered public clients in OAuth terms. This can be
@@ -278,7 +278,7 @@ achieved by using a HTTPOnly session cookie to the browser. Although, this only 
 ![HTTP Session Cookie Flow](./images/http_session_cookie_flow.png)
 
 
-**IoT flow**
+<h2>IoT flow</h2>
 
 There's no real comfortable way to provide input. That is, there is no way to write in your password easily.
 The logic that is used for IoT devices is showing a screen to which you should go to log in on another device.
@@ -313,7 +313,7 @@ useful in this flow as the entire flow is kind of long and bothersome.
 ![IoT Auth Flow](./images/iot_oauth_flow.png)
 
 
-**Client credentials flow**
+<h2>Client credentials flow</h2>
 
 One of the simplest flows, as there is no user involved. No user, no redirects. The application takes its own
 credentials and exchanges them for an access token. The intent of the client credentials grant is to give the
@@ -339,3 +339,76 @@ no real benefit to it. The access token might have an expiration date. Up to the
 these access tokens last. If it expires, you don't have a refresh token, but that's fine because you just make the
 same request again and get back a new access token.
 ![Machine to machine token response](./images/machine_to_machine_token_response.png)
+
+
+<h2>OpenID Connect</h2>
+
+OpenID Connect adds an ID token into the flow. ID Tokens are always JWTs. Access tokens can also be a JWT. Access tokens
+don't have a defined format in the spec, they can be anything. Open ID tokens are defined as JWT in the standard.
+
+A JWT consists of a header, payload, and signature. These three parts are base64 encoded. The first two parts are
+base64-encoded JSON. If you were to take out these two parts, run them through a base64 decoder, you will see
+that they are just plain JSON. The signature is just the base64 encoded signature.
+* The header talks about the ID token. That's going to include things like which
+  of the algorithm was used, and the identifier of the key that signed the token.
+* The payload contains the data that you care about
+* The signature is how you validate the token
+![JWT token](./images/jwt_structure.png)
+
+An example of a decoded ID token
+* The header
+  * kid - identifier of the key that signed the token
+  * alg - what algorithm was used
+* Payload contains a bunch of different things. A user identifier (sub - subject), possibly their profile information,
+such as their name or their email. A user identifier has no defined format in the spec, so it's up to the server to decide
+what it will look like. There are also some other properties, typically those will be
+  * iss - issuer, which is the identifier of the server that issued the token
+  * aud - audience, who this token is for. Ex. the client ID of your application
+  * iat - issued at, timestamp when the token was issued
+  * exp - which is when it will expire, meant to not be considered valid after this point
+![Decoded ID Token](./images/decoded_id_token.png)
+
+<h3>Access tokens vs ID Tokens</h3>
+
+On a high level, these are completely different things.
+
+An access token is what the application gets in order to be able to make API requests to an API. An API should not
+understand what the access token means. It's in the design principle of OAuth that access tokens are usually opaque to
+applications. That means that the apps cannot see through them, they can't see into them. An app should ideally treat
+the access token as an opaque string.
+
+ID tokens are meant to be read by the application. Validate the signature, validate the claims, and then learn about
+the user.
+
+The two actually have different audiences. If you look into it, then you can see different aud values. The audience
+of the ID token is the application. Whereas the audience of the access token is the API, or the resource server.
+We could decode it in our example, since a JWT was used. But it's important to remember that they don't have to be
+JWTs. It might be something else entirely. The application should make no assumptions about what format the access
+token is in, but OpenID tokens are always JWTs and applications have to know how to validate them in order to use them.
+![Access vs ID Token](./images/access_vs_id_token.png)
+
+Applications often want to get both an access token and an ID token. If an application is already getting an access token
+using the authorization code flow, then by far the easiest way to get an ID token is to add the scope "openid" to the
+request, and you'll get back an ID token and an access token. A nice thing about this is since you obtained the ID
+token over the back channel, then you already know that it's valid and don't need to check expiration or anything. 
+You can basically just extract the parts in the middle that you care about and just use that data directly. Vastly
+simplifies everything. Wouldn't even need a JWT library. The signature, however, is important if you get the ID token
+from another untrusted source. But if you get it over a trusted connection, over the back channel, over HTTPS, then
+you don't need to bother checking the signature because you know it can't be tampered with.
+![OpenID token request](./images/open_id_token_request.png)
+![OpenID token response](./images/open_id_response.png)
+
+If you set `response_type` to `id_token`, then that tells the authorization server that you actually don't want an
+access token at all, and that will just give you an ID token. That would then return the ID token in the redirect,
+instead of the authorization code. This looks a lot like the implicit flow in OAuth, where it returns the token without
+the intermediate authorization code. We can use the signature to validate where the token came from. However, when
+doing this, then the auth server is in the dark on who is requesting it. If you have sensitive information in the
+OpenID token, then you don't want to let applications get these over the front channel, where you can't guarantee
+that things aren't snooping on it. So in that case it's much safer to get those using the back channel, using the
+authorization code flow.
+![ID token redirect](./images/id_token_redirect.png)
+
+OpenID defines a bunch of different scopes that you can use in your request to get extra info. By default, if you only
+include "openid" in the request, then the ID token you receive will have very little information in it aside from the
+metadata about the token, like the expiration date. It'll only have the subject or the user ID of the user. If you want
+more information, then you have to include additional scopes. Ex "profile".
