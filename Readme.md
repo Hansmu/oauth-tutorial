@@ -412,3 +412,64 @@ OpenID defines a bunch of different scopes that you can use in your request to g
 include "openid" in the request, then the ID token you receive will have very little information in it aside from the
 metadata about the token, like the expiration date. It'll only have the subject or the user ID of the user. If you want
 more information, then you have to include additional scopes. Ex "profile".
+
+<h3>OpenID Hybrid mode</h3>
+
+A Hybrid flow in OpenID connect is when a combination of response types are used. In plain OAuth, you have 
+`response_type=code`, which means that you just want an authorization code in the response. `response_type=id_token`
+to get only an ID token in the response. OpenID Connect allows combining response types ex. 
+`response_type=code+id_token`, which means that you want an ID token in the front channel and an authorization code
+so you can get an access token in the back channel. There're also response types that include token, which is using the 
+legacy OAuth implicit flow. This is not recommended. Do not use a response type that includes "token", if you can help
+it. Combining is a little tricky, because you'll get the access token and OpenID token in different steps. Using
+`response_type=code` with `scope=openid` means that you'll get both tokens in the response when you exchange an
+authorization code. You don't have to worry about the validity of the JWT because you already got that token over a
+trusted connection. When combining, then we get an ID token in the redirect, along with the auth code. Since it's
+coming in the front channel, then it isn't trusted yet, so JWT validation has to be run.
+![OAuth Hybrid Response](./images/oauth_hybrid_response.png)
+If you use `code+id_token`, then it's going to include another claim in the ID token, which you can use to validate
+the authorization code. That claim is called a `c_hash`. It's going to be essentially a hash of the authorization code
+itself, which you can use to verify that that code wasn't swapped out in that response.
+![C_Hash](./images/c_hash.png)
+The `c_hash` can be used to guard against injection attacks, but the server can never be sure that the client is doing
+that. PKCE comes in again so that the server can be sure that it's protected.
+
+The suggestion from the OAuth group is leaning towards using PKCE even with OpenID connect, and getting the ID token,
+and the access token using the authorization code flow protected by PKCE. This is the most secure option, and the least
+amount of work for application developers, and it provides security at the authorization server layer rather than
+relying on the security of every application developer.
+
+<h3>How to validate and use an ID token</h3>
+
+If you get an ID token over the front channel using the implicit or hybrid flows, then it is absolutely critical that
+you validate it before you trust anything inside it.
+* Validate the signature of the JWT. That way you can confirm that everything inside has not been tampered with.
+To validate the signature, you need to know which key to use. Some OpenID connect servers will hard-code a key in
+their documentation, or you might have found ahead of time some other method. If the server supports multiple keys,
+or rotating keys, then the header of the ID token will contain an identifier of the key that signed the token. So you'll
+typically use a JWT library to validate the signature since it's a bit of crypto work, and you don't want to write
+cryptography code by hand. So you'll find the key that was used to sign the token. You'll also double-check the signing algorithm matches
+one that you expect. Plug it into the JWT library, and it will do the work to check the signature.
+* Now there's a bunch of claims inside the token that need to be validated. Otherwise, somebody might take a valid ID
+token from one application or from one user and drop it into a different application, or swap it into a different
+user's flow.
+  * The issuer (iss) is the first one that you want to check. That makes sure that the ID token that you are looking at is
+  actually coming from the server you think it's coming from.
+  * The audience (aud) claim is the next one. This should match the client ID of your application. Makes sure that the ID 
+  token was not issued to a different application.
+  * The expires at (exp) and issued at (iat) allows you to check that the token is still valid.
+  * Lastly, this is critical, check that the nonce value matches the nonce you set in the request. If you're using a 
+  front channel flow, your request for an ID token has to contain a nonce value. This is one of the ways it protects
+  against an injection attack. By the client generating a random value and the authorization server including it back
+  in the response, that lets the client match it up and ensure that ID token was bound to the original request the
+  client made.
+    ![JWT Values To Validate](./images/jwt_values_to_check.png)
+
+Now you've finished validating, and you can trust what is inside it.
+
+Having said all that, if you get an ID token over the back channel using the authorization code flow, all of these
+validations have already happened through other parts of the flow. So the authorization code flow is kind of like a
+shortcut around all of these validation steps. It's just important to validate the ID token signature and claims if
+you get the ID token over an untrusted channel like the front channel. Remember that any time your application is
+able to accept an ID token from the outside world, it needs to be validated using JWT validation and all the claims.
+If your ID token comes from a trusted source, the authorization server, that's when you don't need to validate it.
