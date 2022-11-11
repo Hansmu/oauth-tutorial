@@ -473,3 +473,33 @@ shortcut around all of these validation steps. It's just important to validate t
 you get the ID token over an untrusted channel like the front channel. Remember that any time your application is
 able to accept an ID token from the outside world, it needs to be validated using JWT validation and all the claims.
 If your ID token comes from a trusted source, the authorization server, that's when you don't need to validate it.
+
+<h2>Access Token Types and their Tradeoffs</h2>
+
+**Reference token** - a long, random string of characters, which doesn't mean anything. The idea is that they don't mean
+anything themselves. They are a reference to data that means something. They could be implemented in a
+relational database. Could also do it in a cache layer like Memcache or Redis where the random string becomes a
+cache key.
+![Reference token DB](./images/reference_token_db.png)
+
+Pros:
+* It's easy to create.
+* Easy to understand.
+* Easy to revoke.
+* Point to data that isn't visible.
+
+Cons:
+* Have to be stored. Doesn't mean anything by itself. Complicates distributed APIs.
+* Requires network to validate.
+
+**Structured token** - the string contains data in some sort of format. Any way to pack data into a string would work.
+A common implementation of this is JWT. There is a standard that describes if you want to use JWTs as access tokens,
+then this is how you do it.
+
+Pros:
+* Don't need shared storage. Simplifies distributed APIs.
+* Can be validated without network. 
+
+Cons:
+* JWT contents are visible.
+* No way to revoke. Services that provide OAuth often keep a DB of their own to be able to revoke.
