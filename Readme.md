@@ -503,3 +503,79 @@ Pros:
 Cons:
 * JWT contents are visible.
 * No way to revoke. Services that provide OAuth often keep a DB of their own to be able to revoke.
+
+<h2>JWT Access Tokens</h2>
+
+JWT spec provides a way to implement it. JWT is an encoded token that's separated into 3 parts. The parts are
+separated by dots. The first two parts are base64 encoded JSON and the last is the signature. While it's signed, then
+the parts aren't encrypted usually.
+* The first, top part, is the header. This talks about the token. It describes things like which signing algorithm was
+used, and might also identify which key was used to sign it.
+* The second, middle part, is the payload and that contains the data you actually care about. It'll usually be these
+short property names, followed by the value also known as the claim. These can be used to verify the payload hasn't
+been tampered with. The spec defines a few claims, but the spec doesn't actually require any of them to be used,
+since the spec is meant to be applicable to many kinds of use cases. There is, however, the JSON Web Token Profile for
+OAuth 2.0 Access Tokens that formalizes the use of JSON Web Tokens for access tokens. The spec requires a couple of
+properties:
+  * iss - issuer. The identifier of the server that issued this token. Typically, the OAuth server's base URL and you
+  might be able to actually fetch a discovery document based on this URL.
+  * exp - expiration. UNIX timestamp at which point the access token should no longer be considered valid. 
+  * iat - issued at. Timestamp at which the token was issued.
+  * aud - audience. Identify the intended party that's going to be reading and validating this token. The identifier of
+  the resource server.
+  * sub - subject. Who the token represents. Ex. if a user is involved, then it's the user identifier. Usually, however,
+  it's an opaque string, rather than a username or email address. If there is no user involved, then this should be the 
+  client ID of the application instead.
+  * client_id - client ID of the application that was issued this token.
+  * jti - JSON Web Token ID. Unique identifier for this particular token, which a resource server can use to see if then
+  token is being used more than once.
+  * (optional) scope. Scope can be included if the access token was issued with a scope in the request.
+  * (optional) auth_time - timestamp at which the user last authenticated at the authorization server. Ex. your API could
+  use this to require that a user has to enter their password in the last hour before doing a sensitive operation, and it
+  would reject the API request if this timestamp is too old.
+  * (optional, from OpenID Connect) acr - authentication context class reference. Ex. if the access token was issued 
+  when the user was already logged in at the server instead of confirming their password, this would be 0, and it shouldn't
+  be allowed to do any operations that have monetary value like purchasing.
+  * (optional, from OpenID Connect) amr - authentication methods reference. Describes how the user authenticated. Ex
+  pwd, if a password was used, fpt for fingerprint, sms for SMS challenge.
+    ![JWT Example](./images/jwt_example.png)
+* Final part, the signature.
+
+
+When validating an OAuth token, the easiest way would be to turn to the OAuth server and ask if it's valid or not.
+However, you need a network connection for this, so this is the slow way. If your access tokens are a random string,
+then this is really the only option. There is a new OAuth endpoint described in the specs called the introspection 
+endpoint. How it can be found on the server will be specific to the server. Usually it will be either documented as
+part of the server or it'll be available in the server's metadata URL. To use it a POST request would be sent with the
+token being sent under the token property. The endpoint will probably require authentication of some sort as well. In
+most cases, this will probably involve registering for some sort of credentials at the server. Sometimes the server will
+reuse the client ID and secret of a service app, or machine to machine app for this purpose. The authentication mechanism
+isn't required by the spec, so it can change from server to server. You'll get back a response with at least the property
+active being true or false. This can, again, depend on the server. If your API included auth in the request to validate
+the token, then the server knows which API is making this request and will also say the token is inactive if it was issued
+for a different API.
+![Token introspection](./images/token_introspection.png)
+
+If the access token is in a structured format like JWT, then validation can be done without going over the wire. 
+The easiest way of validating is using a library. However, something to keep in mind is that the JWT token is a 
+cache of the data at the time that it was created. A user could be deleted, its group changed etc. So additional
+validation beyond local validation might be needed. How does the validation work?
+![JWT parts](./images/jwt_token_sections.png)
+1. The header. It could contain none for the algorithm in the past, this is forbidden now. Read data out of the
+header first, before verifying the signature. Since you have to treat all of this as untrusted data, then you 
+should only accept signing algorithms that you know to expect from the server. An attacker might switch from an 
+asymmetric algorithm to a symmetric one to trick you. In practice, you will probably end up
+hard-coding a list of known signing algorithms that your server uses and only accept those values. A signing key in
+the header usually ends up being a random string. If this value does not appear, then that means the server is only
+using one key to sign tokens. The JWT spec recommends that a server publish its public keys and issuer identifier
+on a metadata url. jwks_uri is where you can find the public keys from. You'd then use a crypto library to validate
+the signature.
+   ![Metadata response](./images/metadata_response.png)
+2. A valid signature does not necessarily mean that the token is valid, though. So you need to check that the iss value
+corresponds to the OAuth server your API is configured to use. Check that the aud matches the identifier for your
+resource server. Then validate the timestamps (exp, iat). These are the bare minimum things to validate.
+
+The best of both worlds could be using an API Gateway. This only does local validation to keep it fast.
+Next it's up to each API or even each individual method within each API to decide whether the fast validation that the
+gateway did was good enough. If it requires, then it goes to the server to validate the token.
+![API Gateway](./images/api_gateway.png)
