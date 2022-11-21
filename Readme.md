@@ -579,3 +579,19 @@ The best of both worlds could be using an API Gateway. This only does local vali
 Next it's up to each API or even each individual method within each API to decide whether the fast validation that the
 gateway did was good enough. If it requires, then it goes to the server to validate the token.
 ![API Gateway](./images/api_gateway.png)
+
+<h2>Token Lifetimes</h2>
+Short lifetimes increase security, as it limits the time a stolen access token could be used. Or how long an API would
+be operating with invalid data, should only the JWT validation be used instead of a DB to check for user expiration
+and whatnot. However, the shorter your token, the more impact it will have on the user experience.
+
+It's a trade-off between user experience and security. A refresh token could be used to split the difference. Although,
+depending on how it works, it would still cause disruption in the form of an occasional request that is slower than 
+usual or redirecting the user to the OAuth page for a sec, as the refresh token is submitted. The more disruptive
+getting a new access token is, the longer an access token lifetime should be.
+
+You can define the access token lifetime contextually. Based on user, scope, app etc. You might want to have different
+access tokens in the app. Have a different one for checking out, as it's a sensitive operation. So whenever checkout is 
+being done, then a re-authentication is needed.
+![Token Lifetime Examples](./images/token_lifetime_examples.png)
+
