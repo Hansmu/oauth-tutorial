@@ -595,3 +595,15 @@ access tokens in the app. Have a different one for checking out, as it's a sensi
 being done, then a re-authentication is needed.
 ![Token Lifetime Examples](./images/token_lifetime_examples.png)
 
+<h2>Handling invalidated tokens</h2>
+A token may become invalid because of more than expiration. A user might lose their privileges, accesses are revoked,
+apps deleted etc. If local JWT validation is done, then that isn't possible. You could create validation rules based on
+the importance of the endpoint. If you're hitting a read-only endpoint that isn't that important, you might only rely on
+local JWT validation. If you're hitting an endpoint that performs a monetary transaction, then you might want to reach
+out to the server to validate that the token is still valid (or just use a completely different access token for it).
+Also, a token's lifetime length might be considered. If it's a short token, then you might have less need for checking
+against an OAuth server, because an invalid token would expire pretty fast. The longer the token expiration, the likelier
+it is that you'll have to turn to the OAuth server.
+
+An app can also invalidate an access token. The OAuth server has an endpoint called a revocation endpoint, which can
+use to revoke an access token and related refresh tokens. Can revoke either or both.
