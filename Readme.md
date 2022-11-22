@@ -607,3 +607,20 @@ it is that you'll have to turn to the OAuth server.
 
 An app can also invalidate an access token. The OAuth server has an endpoint called a revocation endpoint, which can
 use to revoke an access token and related refresh tokens. Can revoke either or both.
+
+<h2>OAuth Scopes</h2>
+Scopes are a way for the application request access to limited parts of a user's account. Scope is not a way to build a
+permissions system. It's a way to limit what an access token can do within the context of what a user can already do.
+
+There's very little guidance on how to define scopes. They're just strings. They only mean something to your API.
+One common way to define scopes is using short strings of lowercase letter words. (read_repo, repo:read,
+example.com/repo/read). The bare minimum scopes that you should add is separating read-access from write-access.
+Another good use for scopes is restricting access to any sort of sensitive information. Also, using scopes to segment
+out completely unrelated parts of a larger API can be useful. Additionally, adding scopes for APIs that can charge
+the user (ex API that creates servers on AWS).
+
+When you're creating a user consent screen, then you should make sure that you're giving enough information to the user
+that they understand what they are consenting to, but not so much that they feel overwhelmed and just hit OK without
+reading. So add appropriate scopes, but not too many scopes. Every scope in the application request needs to be represented on this screen. If the user doesn't see this 
+screen, then it's possible for a malicious application developer to request scopes that the user doesn't know they're
+granting. 
